@@ -1,7 +1,8 @@
 import requests
 from requests_html import HTMLSession
-
 from yaml import load
+import os
+
 
 def read_yaml(filename):
     with open (filename, 'r', encoding='utf8') as f:
@@ -10,16 +11,13 @@ def read_yaml(filename):
     return data
 
 
-def login(config):
-    username = config['username']
-    passwd = config['passwd']
-    login_url = config['login_url']
-    s = HTMLSession()
-    s.get(login_url, auth=(username, passwd))
-    # s.get('http://mp.blog.csdn.net/mdeditor/getArticle?id=79357497')
-    # r = requests.get(login_url, auth=(username, passwd))
-    # print(r)
-    return s
+def parse_cookie(str):
+    cookies = {}
+    for line in str.split(';'):
+        name, value = line.strip().split('=', 1)
+        cookies[name] = value
+    return cookies
+
 
 def get_page_urls(html):
     page_urls_arr = []
@@ -40,15 +38,26 @@ def get_markdown_files(id_list, base_url):
         get_markdown(url)
 
 def get_markdown(url):
-    username = config['username']
-    passwd = config['passwd']
-    login_url = config['login_url']
-    s = HTMLSession()
-    s.get(login_url, auth=(username, passwd))
-    # session = login(config)
-    r = s.get(url)
-    print(r)
+    cookies = parse_cookie(config['cookies'])
+    r = requests.get(url, cookies=cookies)
+    data = r.json()['data']
+    title = data['title']
+    markdown_content = data['markdowncontent']
+    invalid_characaters = '\\/:*?"<>|'
+    for c in invalid_characaters:
+        title = title.replace(c, '')
+    generate_file('data/' + title.strip() + '.md', markdown_content)
 
+
+def generate_file(filename, content):
+    if not os.path.exists(filename):
+        if content is None:
+            print(filename + 'is none')
+        else:
+            print(filename)
+            with open(filename, 'w', encoding='utf8') as f:
+                f.write(content)
+                f.close()
 
 
 def get_article_id_list(url):
